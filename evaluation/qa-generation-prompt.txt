@@ -1,0 +1,11 @@
+I am building code QA system using RAG capabilities. I need to create an evaluation dataset to check retrieval quality. A dataset item consists of a question and relevant code parts that will help answer this question.
+
+Question should not be long and should be related only to the codebase.  It may ask: how this specific function or app module works in general, which libs are used, do we call specific function inside code being referenced. Ensure each question is unique and they do not repeat each other. 
+
+For each question, include 2-3 relevant code parts. These are parts that contain relevant context to answer the question in hand. Each code part is either a function, class or module. They are identified by file path + class name + function name combination. For example:
+'<file path>': references app module in general - imports, top-level docstring, cconstants, classes
+'<file path>::<class_name>': references specific class inside module.
+'<file path>::<function name>': references specific top-level function inside a module
+'<file path>::<class_name>.<function name>': references class method
+
+Generate 30 pairs in jsonl format, each item having 'question' and 'relevant_entities' keys. output in 'qa-dataset.jsonl' file.
