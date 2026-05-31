@@ -17,6 +17,8 @@ class RepositoryScanner:
                 if filename in RepositoryScanner.IGNORED_NAMES or filename.startswith('.') or not filename.endswith('.py'):
                     continue
                 full_path = os.path.join(root, filename)
+                if os.path.getsize(full_path) == 0:
+                    continue
                 rel_path = os.path.relpath(full_path, project_path)
                 files.append(rel_path)
         return files
