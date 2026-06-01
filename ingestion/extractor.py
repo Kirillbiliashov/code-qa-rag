@@ -68,6 +68,16 @@ class SemanticExtractor(ast.NodeVisitor):
     def visit_ClassDef(self, node):
         segment = ast.get_source_segment(self.source, node)
         self.segments.append(segment)
+        
+        attributes = []
+        for item in node.body:
+            if isinstance(item, (ast.AnnAssign, ast.Assign)):
+                # Skip if it's actually a function/method definition
+                if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    attr_code = ast.get_source_segment(self.source, item)
+                    if attr_code:
+                        attributes.append(attr_code)
+                    
         chunk = ClassChunk(
             file_path=self.file_path,
             type="class",
@@ -78,7 +88,8 @@ class SemanticExtractor(ast.NodeVisitor):
             decorators=[ast.get_source_segment(self.source, d) for d in node.decorator_list],
             start_line=node.lineno,
             end_line=node.end_lineno,
-            methods=[]
+            methods=[],
+            attributes=attributes
         )
         self.class_stack.append(node.name)
         

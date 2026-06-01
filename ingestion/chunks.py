@@ -66,6 +66,7 @@ class ClassChunk(FileChunk):
     start_line: int
     end_line: int
     methods: list[str]
+    attributes: list[str]
 
     def generate_id(self) -> str:
         base = self.file_path
@@ -75,6 +76,8 @@ class ClassChunk(FileChunk):
     def to_embedding_text(self) -> str:
         signature = self.code.split(":", 1)[0] + ":"
         parts = [f"Class {self.name} in {self.file_path}", signature, self.docstring or ""]
+        if self.attributes:
+            parts.append("Attributes:\n" + "\n".join(self.attributes))
         if self.methods:
             parts.append("Methods:\n" + "\n".join(self.methods))
         return "\n".join([p for p in parts if p]).strip()
