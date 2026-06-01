@@ -32,13 +32,13 @@ class ModuleChunk(FileChunk):
     def to_embedding_text(self) -> str:
         parts = [f"Top-level module {self.file_path}", self.docstring or ""]
         if self.imports:
-            parts.append("Imports: " + ", ".join(self.imports))
-        if self.classes:
-            parts.append("Classes: " + ", ".join(self.classes))
-        if self.functions:
-            parts.append("Functions: " + ", ".join(self.functions))
+            parts.append("Imports:\n" + "\n".join(self.imports))
         if self.constants:
-            parts.append("Constants: " + ", ".join(self.constants))
+            parts.append("\nConstants:\n " + "\n".join(self.constants))
+        if self.classes:
+            parts.append("Classes:\n" + "\n".join(self.classes))
+        if self.functions:
+            parts.append("\nFunctions:\n" + "\n".join(self.functions))
         return "\n".join(parts).strip()
 
     def to_json_dict(self) -> dict:
@@ -73,7 +73,10 @@ class ClassChunk(FileChunk):
         return f"{prefix}{self.name}"
 
     def to_embedding_text(self) -> str:
-        parts = [f"Class {self.name} in {self.file_path}", self.code, self.docstring or ""]
+        signature = self.code.split(":", 1)[0] + ":"
+        parts = [f"Class {self.name} in {self.file_path}", signature, self.docstring or ""]
+        if self.methods:
+            parts.append("Methods:\n" + "\n".join(self.methods))
         return "\n".join([p for p in parts if p]).strip()
 
     def to_json_dict(self) -> dict:
@@ -108,14 +111,17 @@ class FunctionChunk(FileChunk):
         base = self.file_path
         prefix = f"{base}::{self.parent_class}." if self.parent_class else f"{base}::"
         return f"{prefix}{self.name}"
-
-    def to_embedding_text(self) -> str:
+    
+    def get_signature(self) -> str:
         signature = f"def {self.name}({', '.join(self.args)})"
         if self.returns:
             signature += f" -> {self.returns}"
         if self.async_func:
             signature = "async " + signature
-        parts = [f"Function {self.name} in {self.file_path}", signature, self.code, self.docstring or ""]
+        return signature
+
+    def to_embedding_text(self) -> str:
+        parts = [f"Function {self.name} in {self.file_path}", self.code, self.docstring or ""]
         return "\n".join([p for p in parts if p]).strip()
 
     def to_json_dict(self) -> dict:

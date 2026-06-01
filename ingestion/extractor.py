@@ -12,6 +12,7 @@ class SemanticExtractor(ast.NodeVisitor):
         self.segments = []
         self.chunks: list[FileChunk] = []
         self.class_stack = []
+        self.function_stack = []
         self.current_class_methods = []
         self.imports = []
         self.classes = []
@@ -22,6 +23,11 @@ class SemanticExtractor(ast.NodeVisitor):
     @property
     def parent_class(self):
         return self.class_stack[-1] if self.class_stack else None
+
+    def _get_definition_signature(self, node: ast.AST) -> str:
+        source_segment = ast.get_source_segment(self.source, node) or ""
+        signature = source_segment.split(":", 1)[0] + ":"
+        return signature.strip()
     
     def visit_Module(self, node):
         chunk = ModuleChunk(
@@ -49,6 +55,9 @@ class SemanticExtractor(ast.NodeVisitor):
         self.visit_Import(node)
         
     def visit_Assign(self, node):
+        if self.class_stack or self.function_stack:
+            return
+        
         assignment_code = ast.get_source_segment(self.source, node)
         self.constants.append(assignment_code)
         self.generic_visit(node)
@@ -72,10 +81,15 @@ class SemanticExtractor(ast.NodeVisitor):
             methods=[]
         )
         self.class_stack.append(node.name)
-        self.classes.append(node.name)
         
         self.generic_visit(node)
         chunk.methods = self.current_class_methods
+        
+        class_sig = self._get_definition_signature(node)
+        if self.current_class_methods:
+            class_sig += "\n    " + "\n    ".join(self.current_class_methods)
+            
+        self.classes.append(class_sig)
         
         self.current_class_methods = []
         self.class_stack.pop()
@@ -103,12 +117,15 @@ class SemanticExtractor(ast.NodeVisitor):
             parent_class=self.parent_class
         )
         
+        signature = chunk.get_signature()
         if is_method:
-            self.current_class_methods.append(chunk.name)
-            
-        self.functions.append(chunk.name)
+            self.current_class_methods.append(signature)
+        else:
+            self.functions.append(signature)
+        self.function_stack.append(node.name)
         self.generic_visit(node)
         self.chunks.append(chunk)
+        self.function_stack.pop()
         
     def visit_AsyncFunctionDef(self, node): 
         self.visit_FunctionDef(node)
