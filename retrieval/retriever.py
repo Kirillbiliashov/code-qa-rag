@@ -7,10 +7,11 @@ from sentence_transformers import SentenceTransformer
 
 CLASSIFY_USER_INPUT_PROMPT = PromptTemplate("""
 You will be given user question related to the python codebase.
-Your task is to classify this question accoriding to its scope:
-'module' - user asks question about the whole app module or domain
-'class' - user asks question about specific feature, engine, tool, parser, etc.
-'function' - the question being asked is directly related to specific function and function context will be enough to answer it.
+Your task is to classify this question accoriding to its scope.
+There are 3 scopes, each subsequent scope is more specific and narrower than the previous one:
+'module' - user asks question about a whole file, interactions between different functions and classes in the file, or general question about the file;
+'class' - user asks question about a specific class and its methods, interactions between methods, or general question about the class;
+'function' - the question is specifically about a single function or method, its implementation details, or its interactions with other functions or classes.
 
 In the response, return ONLY one of the selected scopes.
 
