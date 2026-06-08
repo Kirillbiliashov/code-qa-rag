@@ -28,6 +28,12 @@ async def upload_zip(request: Request, file: UploadFile = File(...)):
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="File is not a valid zip archive")
 
+    if not chunks:
+        raise HTTPException(
+            status_code=400,
+            detail="No Python files found in the archive. Please upload a repository that contains .py files.",
+        )
+
     IngestionService.persist_chunks(chunks)
 
     vector_indexer: VectorIndexer = request.app.state.vector_indexer
