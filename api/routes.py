@@ -4,6 +4,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from api.models import AskRequest, AskResponse, UploadResponse
+from ingestion.chunks_store import ChunksStore
 from ingestion.vector_indexer import VectorIndexer
 from services.ingestion_service import IngestionService
 from services.qa_service import QAService
@@ -32,7 +33,9 @@ async def upload_zip(request: Request, file: UploadFile = File(...)):
     vector_indexer: VectorIndexer = request.app.state.vector_indexer
     vector_indexer.reindex_chunks(chunks)
 
-    request.app.state.chunks_count = len(chunks)
+    chunks_store: ChunksStore = request.app.state.chunks_store
+    chunks_store.set(chunks)
+
     files_processed = len({c.file_path for c in chunks})
     return UploadResponse(chunks=len(chunks), files_processed=files_processed)
 
@@ -42,7 +45,8 @@ async def ask(request: Request, body: AskRequest):
     question = body.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question cannot be empty")
-    if request.app.state.chunks_count == 0:
+    chunks_store: ChunksStore = request.app.state.chunks_store
+    if chunks_store.count() == 0:
         raise HTTPException(status_code=400, detail="Upload a repo .zip first")
 
     qa_service: QAService = request.app.state.qa_service
