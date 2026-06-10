@@ -7,6 +7,9 @@ VECTOR_SIZE = 768
 
 QDRANT_URL = "http://192.168.106.2:6333"
 
+MONGO_URL = "mongodb://localhost:27017"
+MONGO_DB_NAME = "code-qa"
+
 LLM_MODEL = "phi3"
 LLM_REQUEST_TIMEOUT = 300.0
 LLM_TEMPERATURE = 0.1

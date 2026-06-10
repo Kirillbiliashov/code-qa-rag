@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Code QA RAG — Ask</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Ask the codebase</h1>
+      <p class="lead">
+        Repository ID: <code id="repo-id"></code> ·
+        <a href="/">upload another</a>
+      </p>
+
+      <section class="panel">
+        <div id="qa-input-block">
+          <textarea
+            id="question"
+            placeholder="e.g. How is authentication implemented?"
+          ></textarea>
+          <div class="row">
+            <button id="ask-btn">Ask</button>
+            <span id="ask-status" class="status"></span>
+          </div>
+        </div>
+
+        <div id="qa-answer-block" class="hidden">
+          <div class="answer" id="answer"></div>
+          <div class="row">
+            <button id="again-btn" class="secondary">Ask another question</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const repoId = decodeURIComponent(
+        window.location.pathname.split("/").filter(Boolean).pop() || ""
+      );
+      document.getElementById("repo-id").textContent = repoId;
+
+      const questionEl = document.getElementById("question");
+      const askBtn = document.getElementById("ask-btn");
+      const askStatus = document.getElementById("ask-status");
+      const answerEl = document.getElementById("answer");
+      const againBtn = document.getElementById("again-btn");
+      const qaInputBlock = document.getElementById("qa-input-block");
+      const qaAnswerBlock = document.getElementById("qa-answer-block");
+
+      async function submitQuestion() {
+        const q = questionEl.value.trim();
+        if (!q) return;
+        askBtn.disabled = true;
+        askStatus.innerHTML = '<span class="spinner"></span>Thinking…';
+
+        try {
+          const res = await fetch("/api/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ repo_id: repoId, question: q }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: res.statusText }));
+            throw new Error(err.detail || "Request failed");
+          }
+          const data = await res.json();
+          answerEl.textContent = data.answer || "(no answer)";
+          qaInputBlock.classList.add("hidden");
+          qaAnswerBlock.classList.remove("hidden");
+        } catch (e) {
+          askStatus.innerHTML = '<span class="error">' + e.message + "</span>";
+        } finally {
+          askBtn.disabled = false;
+          if (!askStatus.querySelector(".error")) askStatus.textContent = "";
+        }
+      }
+
+      askBtn.addEventListener("click", submitQuestion);
+      questionEl.addEventListener("keydown", (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submitQuestion();
+      });
+      againBtn.addEventListener("click", () => {
+        questionEl.value = "";
+        answerEl.textContent = "";
+        qaAnswerBlock.classList.add("hidden");
+        qaInputBlock.classList.remove("hidden");
+        questionEl.focus();
+      });
+    </script>
+  </body>
+</html>

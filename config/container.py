@@ -11,9 +11,12 @@ from config.settings import (
     LLM_REQUEST_TIMEOUT,
     LLM_TEMPERATURE,
     MODEL_NAME,
+    MONGO_DB_NAME,
+    MONGO_URL,
     QDRANT_URL,
     VECTOR_SIZE,
 )
+from db.database import Database
 
 
 class Container:
@@ -25,6 +28,9 @@ class Container:
         self.qdrant_client: QdrantClient = QdrantClient(url=QDRANT_URL)
         self._init_collection(recreate=recreate_collection)
 
+        print(f"Connecting to MongoDB at {MONGO_URL}/{MONGO_DB_NAME}")
+        self.database: Database = Database(MONGO_URL, MONGO_DB_NAME)
+
         print(f"Initializing LLM: {LLM_MODEL}")
         self.llm: LLM = Ollama(
             model=LLM_MODEL,
@@ -33,6 +39,9 @@ class Container:
             context_window=LLM_CONTEXT_WINDOW,
             verbose=True,
         )
+
+    def close(self) -> None:
+        self.database.close()
 
     def _init_collection(self, recreate: bool):
         exists = self.qdrant_client.collection_exists(COLLECTION_NAME)

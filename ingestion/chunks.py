@@ -113,8 +113,8 @@ class FunctionChunk(FileChunk):
     def generate_id(self) -> str:
         base = self.file_path
         prefix = f"{base}::{self.parent_class}." if self.parent_class else f"{base}::"
-        return f"{prefix}{self.name}"
-    
+        return f"{prefix}{self.name}:{self.start_line}:{self.end_line}"
+
     def get_signature(self) -> str:
         signature = f"def {self.name}({', '.join(self.args)})"
         if self.returns:

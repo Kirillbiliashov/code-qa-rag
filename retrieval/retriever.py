@@ -44,7 +44,7 @@ class Retriever:
             return None
         return chunk_type
 
-    def retrieve(self, query: str, top_k: int = 5):
+    def retrieve(self, query: str, repo_id: str | None = None, top_k: int = 5):
         chunk_type = self._classify_query(query)
         print(f"query type: {chunk_type}")
 
@@ -52,16 +52,17 @@ class Retriever:
             query, show_progress_bar=False, normalize_embeddings=True
         )
 
-        query_filter = None
+        must_conditions: list[FieldCondition] = []
         if chunk_type is not None:
-            query_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="type",
-                        match=MatchValue(value=chunk_type),
-                    )
-                ]
+            must_conditions.append(
+                FieldCondition(key="type", match=MatchValue(value=chunk_type))
             )
+        if repo_id is not None:
+            must_conditions.append(
+                FieldCondition(key="repo_id", match=MatchValue(value=repo_id))
+            )
+
+        query_filter = Filter(must=must_conditions) if must_conditions else None
 
         response = self.qdrant_client.query_points(
             collection_name=self.collection_name,

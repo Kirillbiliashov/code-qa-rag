@@ -1,5 +1,5 @@
+from db.database import Database
 from inference.answer_generator import AnswerGenerator
-from ingestion.chunks_store import ChunksStore
 from retrieval.retriever import Retriever
 
 
@@ -7,26 +7,29 @@ class QAService:
     def __init__(
         self,
         retriever: Retriever,
-        chunks_store: ChunksStore,
+        database: Database,
         answer_generator: AnswerGenerator,
     ):
         self.retriever = retriever
-        self.chunks_store = chunks_store
+        self.database = database
         self.answer_generator = answer_generator
 
-    def answer(self, question: str) -> str:
-        points = self.retriever.retrieve(question, top_k=1)
+    def answer(self, repo_id: str, question: str) -> str:
+        points = self.retriever.retrieve(question, repo_id=repo_id, top_k=1)
         if not points:
             return ""
 
         chunk_id = points[0].payload.get("semantic_id")
-        chunk = self.chunks_store.get(chunk_id) if chunk_id else None
-        if chunk is None:
+        if not chunk_id:
             return ""
 
-        code = getattr(chunk, "code", None) or chunk.to_embedding_text()
+        doc = self.database.get_chunk(repo_id, chunk_id)
+        if doc is None:
+            return ""
+
+        code = doc.get("code") or doc.get("retrieval_text", "")
         return self.answer_generator.generate(
             query=question,
-            file_path=chunk.file_path,
+            file_path=doc["file_path"],
             code=code,
         )

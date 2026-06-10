@@ -1,12 +1,10 @@
 import ast
 import io
-import json
 import os
 import tempfile
 import zipfile
 from pathlib import Path
 
-from config.settings import CHUNKS_FILE
 from ingestion.chunks import FileChunk
 from ingestion.extractor import SemanticExtractor
 from ingestion.repo_scanner import RepositoryScanner
@@ -34,12 +32,6 @@ class IngestionService:
                 extractor.visit(tree)
                 chunks.extend(extractor.chunks)
         return chunks
-
-    @staticmethod
-    def persist_chunks(chunks: list[FileChunk]) -> None:
-        with open(CHUNKS_FILE, "w") as f:
-            for chunk in chunks:
-                f.write(json.dumps(chunk.to_json_dict()) + "\n")
 
     @staticmethod
     def _detect_repo_root(extract_dir: str) -> str:
