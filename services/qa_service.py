@@ -27,7 +27,7 @@ class QAService:
         if doc is None:
             return ""
 
-        code = doc.get("code") or doc.get("retrieval_text", "")
+        code = doc.get("code")
         return self.answer_generator.generate(
             query=question,
             file_path=doc["file_path"],

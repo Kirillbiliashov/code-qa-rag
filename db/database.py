@@ -48,7 +48,6 @@ class Database:
                 "chunk_id": d["id"],
                 "file_path": chunk.file_path,
                 "type": chunk.type,
-                "retrieval_text": d["retrieval_text"],
                 "code": getattr(chunk, "code", None),
                 "metadata": d["metadata"],
             })
