@@ -28,6 +28,16 @@ class SemanticExtractor(ast.NodeVisitor):
         source_segment = ast.get_source_segment(self.source, node) or ""
         signature = source_segment.split(":", 1)[0] + ":"
         return signature.strip()
+
+    @staticmethod
+    def _with_docstring(signature: str, docstring: str | None) -> str:
+        if not docstring:
+            return signature
+        return f'{signature}\n    """{docstring}"""'
+
+    @staticmethod
+    def _indent_block(text: str, prefix: str = "    ") -> str:
+        return "\n".join(prefix + line if line else line for line in text.split("\n"))
     
     def visit_Module(self, node):
         chunk = ModuleChunk(
@@ -97,9 +107,13 @@ class SemanticExtractor(ast.NodeVisitor):
         chunk.methods = self.current_class_methods
         
         class_sig = self._get_definition_signature(node)
-        if self.current_class_methods:
-            class_sig += "\n    " + "\n    ".join(self.current_class_methods)
-            
+        body_lines: list[str] = []
+        if chunk.docstring:
+            body_lines.append(f'"""{chunk.docstring}"""')
+        body_lines.extend(self.current_class_methods)
+        if body_lines:
+            class_sig += "\n" + self._indent_block("\n".join(body_lines))
+
         self.classes.append(class_sig)
         
         self.current_class_methods = []
@@ -128,11 +142,11 @@ class SemanticExtractor(ast.NodeVisitor):
             parent_class=self.parent_class
         )
         
-        signature = chunk.get_signature()
+        summary = self._with_docstring(chunk.get_signature(), chunk.docstring)
         if is_method:
-            self.current_class_methods.append(signature)
+            self.current_class_methods.append(summary)
         else:
-            self.functions.append(signature)
+            self.functions.append(summary)
         self.function_stack.append(node.name)
         self.generic_visit(node)
         self.chunks.append(chunk)
