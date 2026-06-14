@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -12,5 +14,12 @@ class AskRequest(BaseModel):
     question: str
 
 
+class QuotaResponse(BaseModel):
+    queries_count: int
+    quota: int
+    quota_reset: datetime
+
+
 class AskResponse(BaseModel):
     answer: str
+    quota: QuotaResponse

@@ -8,10 +8,11 @@ from ingestion.chunks import FileChunk
 
 class Database:
     def __init__(self, url: str, db_name: str):
-        self._client: MongoClient = MongoClient(url)
+        self._client: MongoClient = MongoClient(url, tz_aware=True, tzinfo=timezone.utc)
         self._db = self._client[db_name]
         self.repos = self._db["repos"]
         self.code_chunks = self._db["code_chunks"]
+        self.ip_quotas = self._db["ip_quotas"]
         self._ensure_indexes()
 
     def close(self) -> None:
@@ -25,6 +26,7 @@ class Database:
             unique=True,
             partialFilterExpression={"fingerprint": {"$type": "string"}},
         )
+        self.ip_quotas.create_index([("ip", 1)], unique=True)
 
     def create_repo(
         self, name: str, size: int, chunks_count: int, fingerprint: str
@@ -73,6 +75,27 @@ class Database:
             "repo_id": repo_obj_id,
             "chunk_id": {"$in": chunk_ids},
         }))
+
+    def get_ip_quota(self, ip: str) -> dict | None:
+        return self.ip_quotas.find_one({"ip": ip})
+
+    def upsert_ip_quota(
+        self,
+        ip: str,
+        queries_count: int,
+        quota: int,
+        quota_reset: datetime,
+    ) -> None:
+        self.ip_quotas.update_one(
+            {"ip": ip},
+            {"$set": {
+                "ip": ip,
+                "queries_count": queries_count,
+                "quota": quota,
+                "quota_reset": quota_reset,
+            }},
+            upsert=True,
+        )
 
 
 def _to_object_id(value: str) -> ObjectId | None:

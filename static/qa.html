@@ -13,6 +13,7 @@
         Repository ID: <code id="repo-id"></code> ·
         <a href="/">upload another</a>
       </p>
+      <p class="lead" id="quota-banner"></p>
 
       <section class="panel">
         <div id="qa-input-block">
@@ -48,6 +49,37 @@
       const againBtn = document.getElementById("again-btn");
       const qaInputBlock = document.getElementById("qa-input-block");
       const qaAnswerBlock = document.getElementById("qa-answer-block");
+      const quotaBanner = document.getElementById("quota-banner");
+
+      function renderQuota(quota) {
+        if (!quota) {
+          quotaBanner.textContent = "";
+          return;
+        }
+        const used = quota.queries_count;
+        const total = quota.quota;
+        const remaining = Math.max(total - used, 0);
+        const resetDate = new Date(quota.quota_reset);
+        const resetStr = resetDate.toLocaleString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          month: "short",
+          day: "numeric",
+        });
+        const usedLine = used >= total
+          ? `Daily query limit reached (${used}/${total}).`
+          : `${remaining} of ${total} queries remaining today (${used}/${total} used).`;
+        const resetLine = used > 0 ? ` Resets at ${resetStr}.` : "";
+        quotaBanner.textContent = usedLine + resetLine;
+        askBtn.disabled = used >= total;
+      }
+
+      async function refreshQuota() {
+        try {
+          const res = await fetch("/api/quota");
+          if (res.ok) renderQuota(await res.json());
+        } catch {}
+      }
 
       async function submitQuestion() {
         const q = questionEl.value.trim();
@@ -63,19 +95,28 @@
           });
           if (!res.ok) {
             const err = await res.json().catch(() => ({ detail: res.statusText }));
-            throw new Error(err.detail || "Request failed");
+            if (res.status === 429) {
+              await refreshQuota();
+            } else {
+              askBtn.disabled = false;
+            }
+            askStatus.innerHTML =
+              '<span class="error">' + (err.detail || "Request failed") + "</span>";
+            return;
           }
           const data = await res.json();
           answerEl.textContent = data.answer || "(no answer)";
+          renderQuota(data.quota);
+          askStatus.textContent = "";
           qaInputBlock.classList.add("hidden");
           qaAnswerBlock.classList.remove("hidden");
         } catch (e) {
-          askStatus.innerHTML = '<span class="error">' + e.message + "</span>";
-        } finally {
           askBtn.disabled = false;
-          if (!askStatus.querySelector(".error")) askStatus.textContent = "";
+          askStatus.innerHTML = '<span class="error">' + e.message + "</span>";
         }
       }
+
+      refreshQuota();
 
       askBtn.addEventListener("click", submitQuestion);
       questionEl.addEventListener("keydown", (e) => {

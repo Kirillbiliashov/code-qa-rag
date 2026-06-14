@@ -6,11 +6,12 @@ from fastapi.staticfiles import StaticFiles
 
 from api.routes import router
 from config.container import Container
-from config.settings import COLLECTION_NAME
+from config.settings import COLLECTION_NAME, DAILY_QUERY_QUOTA, QUOTA_WINDOW_HOURS
 from inference.answer_generator import AnswerGenerator
 from ingestion.vector_indexer import VectorIndexer
 from retrieval.retriever import Retriever
 from services.qa_service import QAService
+from services.rate_limiter import RateLimiter
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -41,6 +42,11 @@ async def lifespan(app: FastAPI):
         retriever=retriever,
         database=container.database,
         answer_generator=answer_generator,
+    )
+    app.state.rate_limiter = RateLimiter(
+        database=container.database,
+        quota=DAILY_QUERY_QUOTA,
+        window_hours=QUOTA_WINDOW_HOURS,
     )
     app.state.index_file = INDEX_FILE
     app.state.qa_file = QA_FILE

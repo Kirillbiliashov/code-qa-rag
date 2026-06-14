@@ -3,11 +3,12 @@ import zipfile
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
-from api.models import AskRequest, AskResponse, UploadResponse
+from api.models import AskRequest, AskResponse, QuotaResponse, UploadResponse
 from db.database import Database
 from ingestion.vector_indexer import VectorIndexer
 from services.ingestion_service import IngestionService
 from services.qa_service import QAService
+from services.rate_limiter import RateLimiter
 
 router = APIRouter()
 
@@ -71,6 +72,13 @@ async def upload_zip(request: Request, file: UploadFile = File(...)):
     )
 
 
+@router.get("/api/quota", response_model=QuotaResponse)
+async def quota(request: Request):
+    rate_limiter: RateLimiter = request.app.state.rate_limiter
+    ip = request.client.host if request.client else "unknown"
+    return _quota_payload(rate_limiter.state(ip))
+
+
 @router.post("/api/ask", response_model=AskResponse)
 async def ask(request: Request, body: AskRequest):
     question = body.question.strip()
@@ -81,6 +89,29 @@ async def ask(request: Request, body: AskRequest):
     if not database.get_repo(body.repo_id):
         raise HTTPException(status_code=404, detail="Repository not found")
 
+    rate_limiter: RateLimiter = request.app.state.rate_limiter
+    ip = request.client.host if request.client else "unknown"
+    allowed, blocking_state = rate_limiter.check(ip)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Daily query limit reached ({blocking_state.quota} per "
+                f"{rate_limiter.window.total_seconds() / 3600:.0f}h). "
+                f"Resets at {blocking_state.quota_reset.isoformat()}."
+            ),
+        )
+
     qa_service: QAService = request.app.state.qa_service
     answer = await qa_service.answer(body.repo_id, question)
-    return AskResponse(answer=answer)
+
+    rate_limiter.record(ip)
+    return AskResponse(answer=answer, quota=_quota_payload(rate_limiter.state(ip)))
+
+
+def _quota_payload(state) -> QuotaResponse:
+    return QuotaResponse(
+        queries_count=state.queries_count,
+        quota=state.quota,
+        quota_reset=state.quota_reset,
+    )
