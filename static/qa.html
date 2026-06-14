@@ -5,6 +5,8 @@
     <title>Code QA RAG — Ask</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/static/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
   </head>
   <body>
     <main>
@@ -105,7 +107,11 @@
             return;
           }
           const data = await res.json();
-          answerEl.textContent = data.answer || "(no answer)";
+          if (data.answer) {
+            answerEl.innerHTML = DOMPurify.sanitize(marked.parse(data.answer));
+          } else {
+            answerEl.textContent = "(no answer)";
+          }
           renderQuota(data.quota);
           askStatus.textContent = "";
           qaInputBlock.classList.add("hidden");
