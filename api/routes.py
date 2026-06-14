@@ -32,7 +32,7 @@ async def upload_zip(request: Request, file: UploadFile = File(...)):
 
     contents = await file.read()
     try:
-        chunks = IngestionService.extract_chunks_from_zip(contents)
+        chunks, fingerprint = IngestionService.extract_chunks_from_zip(contents)
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="File is not a valid zip archive")
 
@@ -43,10 +43,20 @@ async def upload_zip(request: Request, file: UploadFile = File(...)):
         )
 
     database: Database = request.app.state.container.database
+
+    existing = database.get_repo_by_fingerprint(fingerprint)
+    if existing is not None:
+        return UploadResponse(
+            repo_id=str(existing["_id"]),
+            chunks=existing.get("chunks_count", len(chunks)),
+            files_processed=len({c.file_path for c in chunks}),
+        )
+
     repo_id = database.create_repo(
         name=file.filename,
         size=len(contents),
         chunks_count=len(chunks),
+        fingerprint=fingerprint,
     )
     database.insert_chunks(repo_id, chunks)
 

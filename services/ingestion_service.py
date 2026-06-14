@@ -1,4 +1,5 @@
 import ast
+import hashlib
 import io
 import os
 import tempfile
@@ -12,8 +13,9 @@ from ingestion.repo_scanner import RepositoryScanner
 
 class IngestionService:
     @staticmethod
-    def extract_chunks_from_zip(zip_bytes: bytes) -> list[FileChunk]:
+    def extract_chunks_from_zip(zip_bytes: bytes) -> tuple[list[FileChunk], str]:
         chunks: list[FileChunk] = []
+        fingerprint_hasher = hashlib.sha256()
         with tempfile.TemporaryDirectory() as tmpdir:
             with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
                 zf.extractall(tmpdir)
@@ -21,17 +23,28 @@ class IngestionService:
             repo_root = IngestionService._detect_repo_root(tmpdir)
             files = RepositoryScanner.scan(repo_root)
 
-            for rel_path in files:
+            for rel_path in sorted(files):
                 full_path = os.path.join(repo_root, rel_path)
                 try:
-                    source = Path(full_path).read_text(encoding="utf-8")
+                    source_bytes = Path(full_path).read_bytes()
+                except OSError:
+                    continue
+
+                fingerprint_hasher.update(rel_path.encode("utf-8"))
+                fingerprint_hasher.update(b"\0")
+                fingerprint_hasher.update(hashlib.sha256(source_bytes).digest())
+                fingerprint_hasher.update(b"\n")
+
+                try:
+                    source = source_bytes.decode("utf-8")
                     tree = ast.parse(source)
                 except (SyntaxError, UnicodeDecodeError, ValueError):
                     continue
                 extractor = SemanticExtractor(source, rel_path)
                 extractor.visit(tree)
                 chunks.extend(extractor.chunks)
-        return chunks
+
+        return chunks, fingerprint_hasher.hexdigest()
 
     @staticmethod
     def _detect_repo_root(extract_dir: str) -> str:

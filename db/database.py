@@ -20,12 +20,20 @@ class Database:
     def _ensure_indexes(self) -> None:
         self.code_chunks.create_index([("repo_id", 1), ("chunk_id", 1)], unique=True)
         self.code_chunks.create_index([("repo_id", 1)])
+        self.repos.create_index(
+            [("fingerprint", 1)],
+            unique=True,
+            partialFilterExpression={"fingerprint": {"$type": "string"}},
+        )
 
-    def create_repo(self, name: str, size: int, chunks_count: int) -> str:
+    def create_repo(
+        self, name: str, size: int, chunks_count: int, fingerprint: str
+    ) -> str:
         result = self.repos.insert_one({
             "name": name,
             "size": size,
             "chunks_count": chunks_count,
+            "fingerprint": fingerprint,
             "created_at": datetime.now(timezone.utc),
         })
         return str(result.inserted_id)
@@ -35,6 +43,9 @@ class Database:
         if obj_id is None:
             return None
         return self.repos.find_one({"_id": obj_id})
+
+    def get_repo_by_fingerprint(self, fingerprint: str) -> dict | None:
+        return self.repos.find_one({"fingerprint": fingerprint})
 
     def insert_chunks(self, repo_id: str, chunks: list[FileChunk]) -> int:
         if not chunks:
