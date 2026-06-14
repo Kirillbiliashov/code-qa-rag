@@ -36,16 +36,16 @@ class Retriever:
         self.qdrant_client = qdrant_client
         self.collection_name = collection_name
 
-    def _classify_query(self, query: str) -> str | None:
+    async def _classify_query(self, query: str) -> str | None:
         prompt = CLASSIFY_USER_INPUT_PROMPT.format(question=query)
-        response = self.llm.complete(prompt)
+        response = await self.llm.acomplete(prompt)
         chunk_type = response.text.strip().lower()
         if chunk_type not in VALID_CHUNK_TYPES:
             return None
         return chunk_type
 
-    def retrieve(self, query: str, repo_id: str | None = None, top_k: int = 5):
-        chunk_type = self._classify_query(query)
+    async def retrieve(self, query: str, repo_id: str | None = None, top_k: int = 5):
+        chunk_type = await self._classify_query(query)
         print(f"query type: {chunk_type}")
 
         query_vector = self.embedding_model.encode(

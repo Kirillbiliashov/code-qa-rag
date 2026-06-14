@@ -72,5 +72,5 @@ async def ask(request: Request, body: AskRequest):
         raise HTTPException(status_code=404, detail="Repository not found")
 
     qa_service: QAService = request.app.state.qa_service
-    answer = qa_service.answer(body.repo_id, question)
+    answer = await qa_service.answer(body.repo_id, question)
     return AskResponse(answer=answer)

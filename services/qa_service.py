@@ -1,3 +1,5 @@
+import asyncio
+
 from db.database import Database
 from inference.answer_generator import AnswerGenerator
 from retrieval.retriever import Retriever
@@ -17,8 +19,8 @@ class QAService:
         self.database = database
         self.answer_generator = answer_generator
 
-    def answer(self, repo_id: str, question: str) -> str:
-        points = self.retriever.retrieve(question, repo_id=repo_id, top_k=TOP_K)
+    async def answer(self, repo_id: str, question: str) -> str:
+        points = await self.retriever.retrieve(question, repo_id=repo_id, top_k=TOP_K)
         if not points:
             return ""
 
@@ -31,17 +33,16 @@ class QAService:
         if not docs:
             return ""
 
-        partial_answers: list[str] = []
-        for doc in docs:
-            partial = self.answer_generator.generate(
+        partial_responses = await asyncio.gather(*(
+            self.answer_generator.generate(
                 query=question,
                 file_path=doc["file_path"],
                 code=doc["code"],
             )
-            if partial.strip():
-                partial_answers.append(partial)
-
-        if not partial_answers:
+            for doc in docs
+        ))
+        partial_responses = [p for p in partial_responses if p.strip()]
+        if not partial_responses:
             return ""
 
-        return self.answer_generator.reduce(query=question, answers=partial_answers)
+        return await self.answer_generator.reduce(query=question, answers=partial_responses)
