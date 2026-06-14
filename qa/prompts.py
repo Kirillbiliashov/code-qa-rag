@@ -62,7 +62,7 @@ A list of answers:
 
 REDUCE_TEMPLATE = ChatPromptTemplate(
     message_templates=[
-        ChatMessage(role=MessageRole.SYSTEM, content=QA_PROMPT),
+        ChatMessage(role=MessageRole.SYSTEM, content=REDUCE_PROMPT),
         ChatMessage(role=MessageRole.USER, content=USER_INPUT_PROMPT),
         ChatMessage(role=MessageRole.USER, content=ANSWERS_CONTEXT_PROMPT),
     ]
