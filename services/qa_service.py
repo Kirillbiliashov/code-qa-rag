@@ -3,6 +3,9 @@ from inference.answer_generator import AnswerGenerator
 from retrieval.retriever import Retriever
 
 
+TOP_K = 3
+
+
 class QAService:
     def __init__(
         self,
@@ -15,21 +18,30 @@ class QAService:
         self.answer_generator = answer_generator
 
     def answer(self, repo_id: str, question: str) -> str:
-        points = self.retriever.retrieve(question, repo_id=repo_id, top_k=1)
+        points = self.retriever.retrieve(question, repo_id=repo_id, top_k=TOP_K)
         if not points:
             return ""
 
-        chunk_id = points[0].payload.get("semantic_id")
-        if not chunk_id:
+        chunk_ids = [
+            p.payload.get("semantic_id")
+            for p in points
+            if p.payload.get("semantic_id")
+        ]
+        docs = self.database.get_chunks(repo_id, chunk_ids)
+        if not docs:
             return ""
 
-        doc = self.database.get_chunk(repo_id, chunk_id)
-        if doc is None:
+        partial_answers: list[str] = []
+        for doc in docs:
+            partial = self.answer_generator.generate(
+                query=question,
+                file_path=doc["file_path"],
+                code=doc["code"],
+            )
+            if partial.strip():
+                partial_answers.append(partial)
+
+        if not partial_answers:
             return ""
 
-        code = doc.get("code")
-        return self.answer_generator.generate(
-            query=question,
-            file_path=doc["file_path"],
-            code=code,
-        )
+        return self.answer_generator.reduce(query=question, answers=partial_answers)

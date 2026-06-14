@@ -48,20 +48,20 @@ class Database:
                 "chunk_id": d["id"],
                 "file_path": chunk.file_path,
                 "type": chunk.type,
-                "code": getattr(chunk, "code", None),
+                "code": getattr(chunk, "code", None) or chunk.to_embedding_text(),
                 "metadata": d["metadata"],
             })
         self.code_chunks.insert_many(docs)
         return len(docs)
 
-    def get_chunk(self, repo_id: str, chunk_id: str) -> dict | None:
+    def get_chunks(self, repo_id: str, chunk_ids: list[str]) -> list[dict]:
         repo_obj_id = _to_object_id(repo_id)
-        if repo_obj_id is None:
-            return None
-        return self.code_chunks.find_one({
+        if repo_obj_id is None or not chunk_ids:
+            return []
+        return list(self.code_chunks.find({
             "repo_id": repo_obj_id,
-            "chunk_id": chunk_id,
-        })
+            "chunk_id": {"$in": chunk_ids},
+        }))
 
 
 def _to_object_id(value: str) -> ObjectId | None:
