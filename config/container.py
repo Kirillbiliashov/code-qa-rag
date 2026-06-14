@@ -1,11 +1,12 @@
 from llama_index.core.llms import LLM
-from llama_index.llms.ollama import Ollama
+from llama_index.llms.deepseek import DeepSeek
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
 from sentence_transformers import SentenceTransformer
 
 from config.settings import (
     COLLECTION_NAME,
+    LLM_API_KEY,
     LLM_CONTEXT_WINDOW,
     LLM_MODEL,
     LLM_REQUEST_TIMEOUT,
@@ -32,11 +33,10 @@ class Container:
         self.database: Database = Database(MONGO_URL, MONGO_DB_NAME)
 
         print(f"Initializing LLM: {LLM_MODEL}")
-        self.llm: LLM = Ollama(
+        self.llm: LLM = DeepSeek(
             model=LLM_MODEL,
-            request_timeout=LLM_REQUEST_TIMEOUT,
             temperature=LLM_TEMPERATURE,
-            context_window=LLM_CONTEXT_WINDOW,
+            api_key=LLM_API_KEY,
             verbose=True,
         )
 
