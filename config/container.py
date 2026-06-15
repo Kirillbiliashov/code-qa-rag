@@ -1,8 +1,9 @@
 from llama_index.core.llms import LLM
 from llama_index.llms.deepseek import DeepSeek
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams
+from qdrant_client.models import Distance, VectorParams, SparseVectorParams
 from sentence_transformers import SentenceTransformer
+from fastembed import SparseTextEmbedding
 
 from config.settings import (
     COLLECTION_NAME,
@@ -24,6 +25,7 @@ class Container:
     def __init__(self, recreate_collection: bool = False):
         print(f"Initializing embedding model: {MODEL_NAME}")
         self.embedding_model: SentenceTransformer = SentenceTransformer(MODEL_NAME)
+        self.sparse_embedding_model = SparseTextEmbedding(model_name="Qdrant/bm25")
 
         print(f"Connecting to Qdrant at {QDRANT_URL}")
         self.qdrant_client: QdrantClient = QdrantClient(url=QDRANT_URL)
@@ -53,5 +55,10 @@ class Container:
             print(f"Creating collection: {COLLECTION_NAME}")
             self.qdrant_client.create_collection(
                 collection_name=COLLECTION_NAME,
-                vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+                vectors_config={
+                    "dense": VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+                    },
+                sparse_vectors_config={
+                    "bm25": SparseVectorParams()
+                }
             )

@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI):
     retriever = Retriever(
         llm=container.llm,
         embedding_model=container.embedding_model,
+        sparse_embedding_model=container.sparse_embedding_model,
         qdrant_client=container.qdrant_client,
         collection_name=COLLECTION_NAME,
     )
@@ -36,6 +37,7 @@ async def lifespan(app: FastAPI):
     app.state.container = container
     app.state.vector_indexer = VectorIndexer(
         embedding_model=container.embedding_model,
+        sparse_embedding_model=container.sparse_embedding_model,
         qdrant_client=container.qdrant_client,
     )
     app.state.qa_service = QAService(

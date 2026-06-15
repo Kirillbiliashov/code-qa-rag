@@ -1,8 +1,9 @@
 from llama_index.core import PromptTemplate
 from llama_index.core.llms import LLM
 from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue
+from qdrant_client.models import Filter, FieldCondition, Fusion, FusionQuery, MatchValue, Prefetch, SparseVector
 from sentence_transformers import SentenceTransformer
+from fastembed import SparseTextEmbedding
 
 
 CLASSIFY_USER_INPUT_PROMPT = PromptTemplate("""
@@ -28,11 +29,13 @@ class Retriever:
         self,
         llm: LLM,
         embedding_model: SentenceTransformer,
+        sparse_embedding_model: SparseTextEmbedding,
         qdrant_client: QdrantClient,
         collection_name: str,
     ):
         self.llm = llm
         self.embedding_model = embedding_model
+        self.sparse_embedding_model = sparse_embedding_model
         self.qdrant_client = qdrant_client
         self.collection_name = collection_name
 
@@ -48,9 +51,6 @@ class Retriever:
         chunk_type = await self._classify_query(query)
         print(f"query type: {chunk_type}")
 
-        query_vector = self.embedding_model.encode(
-            query, show_progress_bar=False, normalize_embeddings=True
-        )
 
         must_conditions: list[FieldCondition] = []
         if chunk_type is not None:
@@ -63,10 +63,32 @@ class Retriever:
             )
 
         query_filter = Filter(must=must_conditions) if must_conditions else None
+        
+        sparse_emb = next(self.sparse_embedding_model.embed(query))
+        sparse_query = SparseVector(
+            indices=sparse_emb.indices.tolist(),
+            values=sparse_emb.values.tolist(),
+        )
+        dense_query = self.embedding_model.encode(
+            query, show_progress_bar=False, normalize_embeddings=True
+        ).tolist()
+        prefetch = [
+            Prefetch(
+                query=dense_query,
+                using="dense",
+                limit=10,
+            ),
+            Prefetch(
+                query=sparse_query,
+                using="bm25",
+                limit=10,
+            ),
+        ]
 
         response = self.qdrant_client.query_points(
             collection_name=self.collection_name,
-            query=query_vector,
+            query=FusionQuery(fusion=Fusion.RRF),
+            prefetch=prefetch,
             query_filter=query_filter,
             limit=top_k,
             with_payload=True,
