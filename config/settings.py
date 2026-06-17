@@ -13,8 +13,8 @@ VECTOR_SIZE = 768
 
 QDRANT_URL = "http://192.168.106.2:6333"
 
-MONGO_URL = "mongodb://localhost:27017"
-MONGO_DB_NAME = "code-qa"
+MONGO_URL = os.getenv("MONGO_DB_CONN_STRING")
+MONGO_DB_NAME = "code-qa-rag"
 
 LLM_MODEL = "deepseek-v4-flash"
 LLM_REQUEST_TIMEOUT = 300.0

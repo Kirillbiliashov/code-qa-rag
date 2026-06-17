@@ -30,7 +30,6 @@ class Container:
         print(f"Connecting to Qdrant at {QDRANT_URL}")
         self.qdrant_client: QdrantClient = QdrantClient(url=QDRANT_URL)
         self._init_collection(recreate=recreate_collection)
-
         print(f"Connecting to MongoDB at {MONGO_URL}/{MONGO_DB_NAME}")
         self.database: Database = Database(MONGO_URL, MONGO_DB_NAME)
 
